@@ -1,11 +1,19 @@
-export default async function handler(req, res) {
+export default async function handler(request) {
   try {
     const response = await fetch("http://ip-api.com/json/");
     const data = await response.json();
 
-    res.setHeader("Access-Control-Allow-Origin", "*"); // habilitar CORS
-    res.status(200).json(data);
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      }
+    });
   } catch (error) {
-    res.status(500).json({ error: "No se pudo obtener datos", details: error.message });
+    return new Response(
+      JSON.stringify({ error: "No se pudo obtener datos", details: error.message }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }
