@@ -1,29 +1,24 @@
 export default async function handler(req, res) {
   try {
-    // Headers potenciales con IP
-    const xff = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '';
-    const remote = req.socket?.remoteAddress || null;
-    const ipFromQuery = req.query?.ip || '';
+    // 1. Obtener la IP desde query (?ip=...)
+    let ip = req.query.ip;
 
-    // Elegimos prioridad: ?ip (si se envía), luego xff, luego remote
-    const chosenIP = ipFromQuery || (xff ? xff.split(',')[0].trim() : '') || remote || '';
+    // 2. Si no vino en query, usar X-Forwarded-For o la IP remota
+    if (!ip) {
+      ip =
+        req.headers["x-forwarded-for"]?.split(",")[0] ||
+        req.socket.remoteAddress;
+    }
 
-    // Hacemos la consulta a ip-api con la IP escogida (si hay), si no pedimos sin IP
-    const url = chosenIP ? `http://ip-api.com/json/${chosenIP}` : "http://ip-api.com/json/";
-    const response = await fetch(url);
+    // 3. Consultar ip-api con la IP obtenida
+    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,query`);
     const data = await response.json();
 
-    // Devuelve datos + debug para inspección en Unity
-    res.status(200).json({
-      debug: {
-        x_forwarded_for: xff,
-        socket_remoteAddress: remote,
-        query_ip: ipFromQuery,
-        chosen_ip: chosenIP,
-      },
-      ipApi: data
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    // 4. Devolver SOLO lo que viene de ip-api
+    res.status(200).json(data);
+
+  } catch (error) {
+    console.error("Error en el proxy geo:", error);
+    res.status(500).json({ error: "Error interno en el proxy" });
   }
 }
